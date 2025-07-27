@@ -1,3 +1,5 @@
+# 🤖 SarthiBot
+
 **Sarthi Bot** is a dual-interface chatbot system designed to connect **vendors** with **suppliers** for the efficient procurement of raw materials.
 
 - **VendorBot** helps small food vendors find and negotiate with local suppliers.
@@ -75,13 +77,13 @@
 
 ## 🧩 Components
 
-- Dual Chat Interfaces: VendorBot & SupplierBot
-- Interactive Message System: With quick replies
-- Form-like Data Collection: Easy input from users
-- API Integration: Pincode lookup via [postalpincode.in](https://postalpincode.in)
-- State Management: Chat state machines for both bots
-- AI Features: Bargaining simulation with logic
-- Language: Hinglish (Hindi + English) responses
+- Dual Chat Interfaces: VendorBot & SupplierBot  
+- Interactive Message System: With quick replies  
+- Form-like Data Collection: Easy input from users  
+- API Integration: Pincode lookup via [postalpincode.in](https://postalpincode.in)  
+- State Management: Chat state machines for both bots  
+- AI Features: Bargaining simulation with logic  
+- Language: Hinglish (Hindi + English) responses  
 
 ---
 
@@ -92,119 +94,80 @@
 ```bash
 git clone https://github.com/dakshtitarmare/SarthiBot.git
 cd SarthiBot
+````
 
-🖥 Open in Browser
-Just open index.html in any modern browser.
+🖥 Open `index.html` in any modern browser.
 
+✅ Works with `file://` protocol — no server required!
 
-✅ Works with file:// protocol — no server required!
+---
 
+### 🌐 Deployment on Vercel (Optional if already deployed)
 
-
-🌐 Deployment on Vercel (Optional if already deployed)
-
-Already Live: ✅ https://sarthibot.vercel.app/
-
+Already Live: ✅ [https://sarthibot.vercel.app/](https://sarthibot.vercel.app/)
 
 Want to deploy yourself?
 
-Go to https://vercel.com and sign in with GitHub.
+1. Go to [https://vercel.com](https://vercel.com) and sign in with GitHub.
+2. Click **New Project** and import your SarthiBot repo.
+3. Keep all default settings.
+4. Click **Deploy**.
+5. Your project will be live instantly.
+
+---
+
+## 🧑‍💼 Usage Guide
+
+### 👨‍🍳 For Vendors:
+
+* Select VendorBot interface
+* Choose a product
+* Enter your pincode
+* Specify quantity
+* Set your price range
+* Browse local suppliers
+* Negotiate with AI
+
+### 🏭 For Suppliers:
+
+* Select SupplierBot interface
+* Register your business
+* Add product categories
+* List products with pricing
+* Set bargaining ranges
+* Respond to vendor requests
+
+---
+
+## 📦 Key JavaScript Components
+
+* `vendorChatState` – Tracks vendor conversation state
+* `supplierChatState` – Tracks supplier conversation state
+* `suppliersDatabase` – Local JSON database of supplier/product data
+* `addBotMessage()` – Renders bot responses in chat
+* `handleVendorResponse()` – Handles VendorBot input & flow
+* `handleSupplierResponse()` – Handles SupplierBot input & flow
+
+---
+
+## 👨‍💻 Team SarthiBot
+
+| Name             | Role                              | GitHub Handle                                            | LinkedIn      |
+| ---------------- | --------------------------------- | -------------------------------------------------------- | ------------- |
+| Daksh Titarmare  | Team Lead + Backend Developer     | [@daksh-titarmare](https://github.com/daksh-titarmare)   | [LinkedIn](https://www.linkedin.com/in/dakshtitarmare/) |
+| Tejas Bankar     | Frontend Developer + AI Lead      | [@tejas-bankar](https://github.com/Tejasbankar5)         | [LinkedIn](https://www.linkedin.com/in/tejas-bankar-5b587926a/) |
+| Visvesh Paturkar | Backend Developer                 | [@visvesh-paturkar](https://github.com/vishuhack)        | [LinkedIn](https://www.linkedin.com/in/vishvesh-paturkar-b508a1220/) |
+| Pratik Lajewar   | Backend Developer + Documentation | [@pratik-lajewar](https://github.com/Pratiklanjewar2025) | [LinkedIn](https://www.linkedin.com/in/pratik-lanjewar-08308030a/) |
 
 
-Click "New Project" and import your SarthiBot repo.
+---
 
+## 📄 License
 
-Keep all default settings.
-
-
-Click "Deploy".
-
-
-Your project will be live instantly.
-
-
-
-🧑‍💼 Usage Guide
-👨‍🍳 For Vendors:
-
-Select VendorBot interface
-
-
-Choose a product
-
-
-Enter your pincode
-
-
-Specify quantity
-
-
-Set your price range
-
-
-Browse local suppliers
-
-
-Negotiate with AI
-
-
-🏭 For Suppliers:
-
-Select SupplierBot interface
-
-
-Register your business
-
-
-Add product categories
-
-
-List products with pricing
-
-
-Set bargaining ranges
-
-
-Respond to vendor requests
-
-
-
-📦 Key JavaScript Components
-
-vendorChatState – Tracks vendor conversation state
-
-
-supplierChatState – Tracks supplier conversation state
-
-
-suppliersDatabase – Local JSON database of supplier/product data
-
-
-addBotMessage() – Renders bot responses in chat
-
-
-handleVendorResponse() – Handles VendorBot input & flow
-
-
-handleSupplierResponse() – Handles SupplierBot input & flow
-
-
-
-##👨‍💻 Team SarthiBot
-
-
-| Name                 | Role                              | LinkedIn      |
-| -------------------- | --------------------------------- | ------------- |
-| **Daksh Titarmare**  | Team Lead + Backend Developer     | [LinkedIn](#) |
-| **Tejas Bankar**     | Frontend Developer + AI Lead      | [LinkedIn](#) |
-| **Visvesh Paturkar** | Backend Developer                 | [LinkedIn](#) |
-| **Pratik Lajewar**   | Backend Developer + Documentation | [LinkedIn](#) |
-
-
-
-
-
-📄 License
 This project is open-source and available under the MIT License.
 
+---
 
+## 🌟 Show Your Support
+
+If you like this project, please consider ⭐ starring the repo and sharing it with your network!
