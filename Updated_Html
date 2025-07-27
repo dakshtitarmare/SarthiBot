@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Cart Supply System</title>
+    <script src="https://www.gstatic.com/dialogflow-console/fast/messenger-cx/bootstrap.js?v=1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@google/generative-ai"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -277,6 +279,37 @@
     </div>
 
     <script>
+        // Gemini API integration
+const GEMINI_API_KEY = "AIzaSyBzYE95khwWrlXNIHQsNGA9xZDZQFykrYU"; // Replace with your actual API key
+
+async function negotiateWithGemini(product, userOffer) {
+    try {
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const systemInstruction = `You are a tough but fair Indian supplier negotiating for "${product.name}".
+            Your listed price is ₹${product.standardPrice} per KG.
+            You can accept a price between ₹${product.minPrice} and ₹${product.maxPrice}.
+            Be conversational and use common Indian bargaining phrases. Respond in a mix of Hindi and English (Hinglish).
+            If you agree on a price, you MUST end your response with the special token: DEAL_ACCEPTED:{final_price}. Do not include currency symbols in the token.
+            Example: "Chalo theek hai, final price. DEAL_ACCEPTED:85"
+            If you cannot accept the offer, make a counter-offer.
+            The user's latest offer is: "${userOffer}"`;
+        
+        const chat = model.startChat({
+            systemInstruction: systemInstruction
+        });
+        
+        const result = await chat.sendMessage(userOffer);
+        const response = await result.response;
+        const text = response.text();
+        
+        return text;
+    } catch (error) {
+        console.error("Error with Gemini API:", error);
+        return "Maaf kijiye, samasya hui. Kripya dobara koshish karein.";
+    }
+}
         // =============================================
         // Common Functions
         // =============================================
@@ -639,107 +672,118 @@
             vendorChatState.step = "bargaining";
         }
 
-        function handleBargaining(message) {
-            const material = vendorChatState.selectedMaterial;
-            const minPrice = material.minPrice;
-            const maxPrice = material.maxPrice;
+        async function handleBargaining(message) {
+    const material = vendorChatState.selectedMaterial;
+    
+    // Show typing indicator
+    const typingIndicator = document.createElement("div");
+    typingIndicator.classList.add("message", "bot-message");
+    typingIndicator.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;">
+        <div class="spinner"></div>
+        <span>Supplier soch raha hai...</span>
+    </div>`;
+    vendorChatMessages.appendChild(typingIndicator);
+    
+    try {
+        // Get Gemini's response
+        const geminiResponse = await negotiateWithGemini(
+            {
+                name: material.name,
+                standardPrice: material.standardPrice,
+                minPrice: material.minPrice,
+                maxPrice: material.maxPrice
+            },
+            message
+        );
+        
+        // Remove typing indicator
+        vendorChatMessages.removeChild(typingIndicator);
+        
+        // Check if deal was accepted
+        const dealMatch = geminiResponse.match(/DEAL_ACCEPTED:(\d+)/);
+        if (dealMatch) {
+            const finalPrice = parseInt(dealMatch[1]);
+            // Extract just the text before the DEAL_ACCEPTED token
+            const responseText = geminiResponse.split('DEAL_ACCEPTED')[0].trim();
             
-            if (message.includes("Haan") || message.includes("final")) {
-                // Accept the current offer
-                closeDeal(vendorChatState.currentOffer);
-                return;
-            }
-
-            // Try to extract a price from the message
-            let newOffer = vendorChatState.currentOffer;
-            const priceMatch = message.match(/₹(\d+)/);
-            if (priceMatch) {
-                newOffer = parseInt(priceMatch[1]);
-            } else if (message.includes("%")) {
-                // Handle percentage discount
-                const discountMatch = message.match(/(\d+)%/);
-                if (discountMatch) {
-                    const discount = parseInt(discountMatch[1]);
-                    newOffer = Math.max(minPrice, vendorChatState.currentOffer * (1 - discount/100));
-                }
-            }
-
-            // Simulate supplier's response - try to get the highest possible price
-            if (newOffer < minPrice) {
-                // Below minimum - reject
-                addBotMessage(vendorChatMessages, `Maaf kijiye, hum ₹${minPrice}/KG se kam mein nahi bech sakte. Kya aap ₹${minPrice}/KG par deal karna pasand karenge?`, [
-                    `Haan, ₹${minPrice}/KG par deal karo`,
-                    "Nahi, main aur sasta chahta hoon"
-                ]);
-                vendorChatState.currentOffer = minPrice;
-            } else if (newOffer >= material.standardPrice) {
-                // At or above standard price - accept immediately
-                vendorChatState.currentOffer = newOffer;
-                addBotMessage(vendorChatMessages, `Theek hai! Hum aapki offer ₹${newOffer}/KG par accept karte hain.`);
-                closeDeal(newOffer);
-            } else {
-                // Between min and standard - negotiate
-                // Supplier will counter with a higher price (but not more than standard)
-                const supplierCounter = Math.min(
-                    maxPrice,
-                    Math.max(
-                        minPrice,
-                        newOffer * 1.1, // Try to get 10% more
-                        vendorChatState.currentOffer // Don't go below previous offer
-                    )
-                );
-                
-                if (supplierCounter <= newOffer) {
-                    // Accept if the user's offer is good enough
-                    vendorChatState.currentOffer = newOffer;
-                    addBotMessage(vendorChatMessages, `Theek hai! Hum aapki offer ₹${newOffer}/KG par accept karte hain.`);
-                    closeDeal(newOffer);
-                } else {
-                    // Counter offer
-                    vendorChatState.currentOffer = supplierCounter;
-                    addBotMessage(vendorChatMessages, `Hum ₹${supplierCounter}/KG tak ja sakte hain. Kya aap is rate par deal karna pasand karenge?`, [
-                        `Haan, ₹${supplierCounter}/KG par deal karo`,
-                        `Nahi, mujhe ₹${Math.max(minPrice, Math.floor(supplierCounter * 0.95))}/KG chahiye`
-                    ]);
-                }
-            }
+            // Show supplier's response
+            addBotMessage(vendorChatMessages, responseText);
+            
+            // Close the deal
+            closeDeal(finalPrice);
+            return;
         }
-
-        function closeDeal(finalPrice) {
-            const material = vendorChatState.selectedMaterial;
-            const supplier = suppliersDatabase.suppliers.find(s => s.id === material.supplierId);
+        
+        // If no deal, show supplier's response and continue bargaining
+        addBotMessage(vendorChatMessages, geminiResponse);
+        
+        // Suggest common bargaining options
+        const currentPriceMatch = geminiResponse.match(/₹(\d+)/);
+        if (currentPriceMatch) {
+            const currentPrice = parseInt(currentPriceMatch[1]);
+            const options = [
+                `Haan, ₹${currentPrice}/KG par final karo`,
+                `Nahi, mujhe ₹${Math.max(material.minPrice, Math.floor(currentPrice * 0.95))}/KG chahiye`,
+                `Main 10% discount chahta hoon (₹${Math.max(material.minPrice, Math.floor(currentPrice * 0.9))}/KG)`
+            ];
             
-            const dealMessage = document.createElement("div");
-            dealMessage.classList.add("deal-closed");
-            dealMessage.innerHTML = `
-                <p><strong>Deal Final!</strong></p>
-                <p>Aapne ${supplier?.businessName || 'Supplier'} se ${vendorChatState.quantity} KG ${vendorChatState.selectedItem} ₹${finalPrice}/KG ke rate par khareeda.</p>
-                <p>Total amount: ₹${finalPrice * vendorChatState.quantity}</p>
-                <p>Supplier ko aapke email (${vendorChatState.userEmail}) par confirmation bhej di gayi hai.</p>
-                ${supplier?.email ? `<p>Supplier ka contact: ${supplier.email}</p>` : ''}
-            `;
-            vendorChatMessages.appendChild(dealMessage);
+            const quickReplyContainer = document.createElement("div");
+            quickReplyContainer.classList.add("quick-reply");
             
-            // In a real app, send email to supplier and user here
-            console.log("Email to supplier:", {
-                to: supplier?.email,
-                subject: `New Order for ${vendorChatState.selectedItem}`,
-                body: `You have a new order from ${vendorChatState.userEmail}:\n\nItem: ${vendorChatState.selectedItem}\nQuantity: ${vendorChatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * vendorChatState.quantity}`
+            options.forEach(option => {
+                const button = document.createElement("button");
+                button.classList.add("quick-reply-btn");
+                button.textContent = option;
+                button.onclick = function() {
+                    addUserMessage(vendorChatMessages, option);
+                    handleBargaining(option);
+                };
+                quickReplyContainer.appendChild(button);
             });
             
-            console.log("Email to user:", {
-                to: vendorChatState.userEmail,
-                subject: `Your Order Confirmation for ${vendorChatState.selectedItem}`,
-                body: `Thank you for your order:\n\nItem: ${vendorChatState.selectedItem}\nQuantity: ${vendorChatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * vendorChatState.quantity}\n\nSupplier Contact: ${supplier?.email || 'Not available'}`
-            });
-            
-            addBotMessage(vendorChatMessages, "Kya aap kuch aur khareedna chahenge?", [
-                "Haan, nayi search karna hai",
-                "Nahi, abhi nahi"
-            ]);
-            vendorChatState.step = "deal_closed";
+            vendorChatMessages.appendChild(quickReplyContainer);
         }
+        
+    } catch (error) {
+        vendorChatMessages.removeChild(typingIndicator);
+        addBotMessage(vendorChatMessages, "Maaf kijiye, bargaining mein koi samasya hui. Kripya dobara koshish karein.");
+    }
+}
 
+function closeDeal(finalPrice) {
+    const material = vendorChatState.selectedMaterial;
+    const supplier = suppliersDatabase.suppliers.find(s => s.id === material.supplierId);
+    
+    const dealMessage = document.createElement("div");
+    dealMessage.classList.add("deal-closed");
+    dealMessage.innerHTML = `
+        <p><strong>Deal Final!</strong></p>
+        <p>Aapne ${supplier?.businessName || 'Supplier'} se ${vendorChatState.quantity} KG ${vendorChatState.selectedItem} ₹${finalPrice}/KG ke rate par khareeda.</p>
+        <p>Total amount: ₹${finalPrice * vendorChatState.quantity}</p>
+        <p>Supplier ko aapke email (${vendorChatState.userEmail}) par confirmation bhej di gayi hai.</p>
+        ${supplier?.email ? `<p>Supplier ka contact: ${supplier.email}</p>` : ''}
+    `;
+    vendorChatMessages.appendChild(dealMessage);
+    
+    // Simulate sending emails
+    sendEmail(
+        supplier?.email,
+        `New Order for ${vendorChatState.selectedItem}`,
+        `You have a new order from ${vendorChatState.userEmail}:\n\nItem: ${vendorChatState.selectedItem}\nQuantity: ${vendorChatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * vendorChatState.quantity}\n\nPlease contact the vendor at ${vendorChatState.userEmail} to arrange delivery.`
+    );
+    
+    sendEmail(
+        vendorChatState.userEmail,
+        `Your Order Confirmation for ${vendorChatState.selectedItem}`,
+        `Thank you for your order:\n\nItem: ${vendorChatState.selectedItem}\nQuantity: ${vendorChatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * vendorChatState.quantity}\n\nSupplier Contact: ${supplier?.email || 'Not available'}\n\nPlease contact the supplier to arrange pickup/delivery.`
+    );
+    
+    addBotMessage(vendorChatMessages, "Kya aap kuch aur khareedna chahenge?", [
+        "Haan, nayi search karna hai",
+        "Nahi, abhi nahi"
+    ]);
+    vendorChatState.step = "deal_closed";
+}
         function resetVendorToWelcome() {
             vendorChatState = {
                 step: "welcome",
