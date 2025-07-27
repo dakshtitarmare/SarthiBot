@@ -277,37 +277,6 @@
     </div>
 
     <script>
-
-        const GEMINI_API_KEY = "AIzaSyBzYE95khwWrlXNIHQsNGA9xZDZQFykrYU"; // Replace with your actual API key
-
-async function negotiateWithGemini(product, userOffer) {
-    try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        
-        const systemInstruction = `You are a tough but fair Indian supplier negotiating for "${product.name}".
-            Your listed price is ₹${product.standardPrice} per KG.
-            You can accept a price between ₹${product.minPrice} and ₹${product.maxPrice}.
-            Be conversational and use common Indian bargaining phrases. Respond in a mix of Hindi and English (Hinglish).
-            If you agree on a price, you MUST end your response with the special token: DEAL_ACCEPTED:{final_price}. Do not include currency symbols in the token.
-            Example: "Chalo theek hai, final price. DEAL_ACCEPTED:85"
-            If you cannot accept the offer, make a counter-offer.
-            The user's latest offer is: "${userOffer}"`;
-        
-        const chat = model.startChat({
-            systemInstruction: systemInstruction
-        });
-        
-        const result = await chat.sendMessage(userOffer);
-        const response = await result.response;
-        const text = response.text();
-        
-        return text;
-    } catch (error) {
-        console.error("Error with Gemini API:", error);
-        return "Maaf kijiye, samasya hui. Kripya dobara koshish karein.";
-    }
-}
         // =============================================
         // Common Functions
         // =============================================
@@ -746,7 +715,7 @@ async function negotiateWithGemini(product, userOffer) {
                 <p><strong>Deal Final!</strong></p>
                 <p>Aapne ${supplier?.businessName || 'Supplier'} se ${vendorChatState.quantity} KG ${vendorChatState.selectedItem} ₹${finalPrice}/KG ke rate par khareeda.</p>
                 <p>Total amount: ₹${finalPrice * vendorChatState.quantity}</p>
-                
+                <p>Supplier ko aapke email (${vendorChatState.userEmail}) par confirmation bhej di gayi hai.</p>
                 ${supplier?.email ? `<p>Supplier ka contact: ${supplier.email}</p>` : ''}
             `;
             vendorChatMessages.appendChild(dealMessage);
