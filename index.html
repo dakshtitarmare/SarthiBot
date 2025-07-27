@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
+            background-color: hsl(0, 0%, 96%);
             margin: 0;
             padding: 0;
             display: flex;
@@ -152,16 +152,6 @@
             padding: 10px;
             margin-top: 10px;
         }
-        .loading-dots:after {
-            content: '.';
-            animation: dots 1s steps(5, end) infinite;
-        }
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60% { content: '...'; }
-            80%, 100% { content: ''; }
-        }
     </style>
 </head>
 
@@ -180,208 +170,433 @@
     </div>
 
     <script>
-         // ========== CONFIGURATION ==========
-        const GEMINI_API_KEY = "AIzaSyBzYE95khwWrlXNIHQsNGA9xZDZQFykrYU"; // Replace with your actual API key
-        const EMAIL_API_URL = "https://your-email-service.com/api/send"; // Replace with your email service endpoint
-        
-        // ========== USER FLOW CONTROL ==========
-        const FLOW_STEPS = {
-            WELCOME: "welcome",
-            PINCODE: "ask_pincode",
-            QUANTITY: "ask_quantity",
-            PRICE_RANGE: "ask_price_range",
-            SHOW_SELLERS: "show_sellers",
-            BARGAIN: "bargaining",
-            GET_EMAIL: "get_email",
-            DEAL_CLOSED: "deal_closed"
+        // Database simulation (in a real app, this would be an API call)
+        const suppliersDatabase = {
+            "Delhi": [
+                { id: 1, item: "Onion", pricePerKg: 25, supplier: "Fresh Farms", quality: "A Grade", contact: "freshfarms@example.com" },
+                { id: 2, item: "Onion", pricePerKg: 20, supplier: "City Vegetables", quality: "B Grade", contact: "cityveg@example.com" },
+                { id: 3, item: "Onion", pricePerKg: 30, supplier: "Organic Delights", quality: "Organic", contact: "organicd@example.com" },
+                { id: 4, item: "Tomato", pricePerKg: 40, supplier: "Fresh Farms", quality: "A Grade", contact: "freshfarms@example.com" },
+                { id: 5, item: "Tomato", pricePerKg: 35, supplier: "City Vegetables", quality: "B Grade", contact: "cityveg@example.com" },
+                { id: 6, item: "Paneer", pricePerKg: 200, supplier: "Dairy King", quality: "Premium", contact: "dairyking@example.com" },
+                { id: 7, item: "Paneer", pricePerKg: 180, supplier: "Milk & More", quality: "Standard", contact: "milkmore@example.com" }
+            ],
+            "Mumbai": [
+                { id: 8, item: "Onion", pricePerKg: 28, supplier: "Mumbai Veggies", quality: "A Grade", contact: "mumbaiveg@example.com" },
+                { id: 9, item: "Tomato", pricePerKg: 45, supplier: "Mumbai Veggies", quality: "A Grade", contact: "mumbaiveg@example.com" },
+                { id: 10, item: "Paneer", pricePerKg: 220, supplier: "Mumbai Dairy", quality: "Premium", contact: "mumbaidairy@example.com" }
+            ],
+            "Bangalore": [
+                { id: 11, item: "Onion", pricePerKg: 30, supplier: "Bangalore Fresh", quality: "A Grade", contact: "blrfresh@example.com" },
+                { id: 12, item: "Tomato", pricePerKg: 50, supplier: "Bangalore Fresh", quality: "Organic", contact: "blrfresh@example.com" }
+            ]
         };
 
-        // ========== CORE FUNCTIONS ==========
+
+        async function getCityFromPincode(pincode) {
+            try {
+                console.log("hit api");
+                const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+                const data = await response.json();
+                console.log("wait response");
+                if (data[0].Status === "Success" && data[0].PostOffice) {
+                    // Take the first post office entry's District as city
+                    const city = data[0].PostOffice[0].District;
+                    console.log("got city:", city);
+                    chatState.city=city;
+                    return city;
+                    
+                }
+                console.log("got null");
+                return null;
+            } catch (error) {
+                console.error("Error fetching pincode data:", error);
+                return null;
+            }
+        }
+
+        // Chat state
+        let chatState = {
+            step: "welcome",
+            selectedItem: null,
+            pincode: null,
+            city: null,
+            quantity: null,
+            minPrice: null,
+            maxPrice: null,
+            selectedMaterial: null,
+            userEmail: null,
+            bargaining: false,
+            currentOffer: null
+        };
+
+        // DOM elements
+        const chatMessages = document.getElementById("chat-messages");
+        const userInput = document.getElementById("user-input");
+        const sendBtn = document.getElementById("send-btn");
+
+        // Initialize chat
+        window.onload = function () {
+            addBotMessage("Namaste! Main aapka VendorBot hoon. Main aapko food cart ke liye raw material khareedne mein madad kar sakta hoon.");
+            addBotMessage("Kya aap aj kuch khareedna chahenge?", [
+                "Haan, onion khareedna hai",
+                "Haan, tomato khareedna hai",
+                "Haan, paneer khareedna hai",
+                "Kuch aur khareedna hai"
+            ]);
+        };
+
+        // Send message on button click
+        sendBtn.addEventListener("click", sendMessage);
+
+        // Send message on Enter key
+        userInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === "") return;
+
+            addUserMessage(message);
+            userInput.value = "";
+
+            handleUserResponse(message);
+        }
+
+        function addUserMessage(message) {
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", "user-message");
+            messageElement.textContent = message;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addBotMessage(message, quickReplies = null) {
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", "bot-message");
+            messageElement.textContent = message;
+            chatMessages.appendChild(messageElement);
+
+            if (quickReplies) {
+                const quickReplyContainer = document.createElement("div");
+                quickReplyContainer.classList.add("quick-reply");
+
+                quickReplies.forEach(reply => {
+                    const button = document.createElement("button");
+                    button.classList.add("quick-reply-btn");
+                    button.textContent = reply;
+                    button.onclick = function () {
+                        addUserMessage(reply);
+                        handleUserResponse(reply);
+                    };
+                    quickReplyContainer.appendChild(button);
+                });
+
+                chatMessages.appendChild(quickReplyContainer);
+            }
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
         async function handleUserResponse(message) {
             switch (chatState.step) {
-                case FLOW_STEPS.WELCOME:
-                    handleWelcomeStep(message);
+                case "welcome":
+                    if (message.includes("onion") || message === "Haan, onion khareedna hai") {
+                        chatState.selectedItem = "Onion";
+                        askForPincode();
+                    } else if (message.includes("tomato") || message === "Haan, tomato khareedna hai") {
+                        chatState.selectedItem = "Tomato";
+                        askForPincode();
+                    } else if (message.includes("paneer") || message === "Haan, paneer khareedna hai") {
+                        chatState.selectedItem = "Paneer";
+                        askForPincode();
+                    } else if (message === "Kuch aur khareedna hai") {
+                        addBotMessage("Kripya bataein aap kya khareedna chahenge? (Example: Gobhi, Aalu, etc.)");
+                        chatState.step = "ask_custom_item";
+                    } else {
+                        chatState.selectedItem = message;
+                        askForPincode();
+                    }
                     break;
-                    
-                case FLOW_STEPS.PINCODE:
-                    await handlePincodeStep(message);
+
+                case "ask_custom_item":
+                    chatState.selectedItem = message;
+                    askForPincode();
                     break;
-                    
-                case FLOW_STEPS.QUANTITY:
-                    handleQuantityStep(message);
+
+                case "ask_pincode":
+                    const pincode = message.split(" ").find(part => /^\d{6}$/.test(part));
+                    if (pincode) {
+                        chatState.pincode = pincode;
+
+                        addBotMessage("Pincode verify kar raha hoon...");
+
+                        try {
+                            const city = await getCityFromPincode(pincode); // Await the result
+                            if (city) {
+                                chatState.city = city;
+                                addBotMessage(`Dhanyavaad! Main aapke ${chatState.city} mein suppliers dhundhunga.`);
+                                askForQuantity();
+                            } else {
+                                addBotMessage("Mujhe is pincode se city nahi mil payi. Kripya sahi pincode daalein (6 digits).");
+                            }
+                        } catch (error) {
+                            addBotMessage("Pincode verify karne mein samasya hui. Kripya dobara koshish karein.");
+                        }
+                    } else {
+                        addBotMessage("Kripya sahi pincode daalein (6 digits). Example: 110001");
+                    }
                     break;
-                    
-                case FLOW_STEPS.PRICE_RANGE:
-                    handlePriceRangeStep(message);
+
+                case "ask_quantity":
+                    const quantityMatch = message.match(/\d+/);
+                    if (quantityMatch) {
+                        chatState.quantity = parseInt(quantityMatch[0]);
+                        askForPriceRange();
+                    } else {
+                        addBotMessage("Kripya sahi quantity daalein. Example: 5 KG ya 10 KG");
+                    }
                     break;
-                    
-                case FLOW_STEPS.SHOW_SELLERS:
-                    handleSellerSelectionStep(message);
+
+                case "ask_price_range":
+                    const priceRangeMatch = message.match(/(\d+)\s*-\s*(\d+)/);
+                    if (priceRangeMatch) {
+                        chatState.minPrice = parseInt(priceRangeMatch[1]);
+                        chatState.maxPrice = parseInt(priceRangeMatch[2]);
+                        showAvailableMaterials();
+                    } else {
+                        addBotMessage("Kripya sahi price range daalein. Example: 20-30");
+                    }
                     break;
-                    
-                case FLOW_STEPS.BARGAIN:
-                    await handleBargainingStep(message);
+
+                case "show_materials":
+                    if (message.toLowerCase().includes("nahi")) {
+                        addBotMessage("Koi baat nahi. Kya aap kuch aur dekhna chahenge?", [
+                            "Haan, nayi search karna hai",
+                            "Nahi, baad mein"
+                        ]);
+                        chatState.step = "new_search_decision";
+                    } else {
+                        const materialId = parseInt(message);
+                        const material = findMaterialById(materialId);
+                        if (material) {
+                            chatState.selectedMaterial = material;
+                            askForEmail();
+                        } else {
+                            addBotMessage("Kripya sahi option number daalein.");
+                        }
+                    }
                     break;
-                    
-                case FLOW_STEPS.GET_EMAIL:
-                    handleEmailStep(message);
+
+                case "ask_email":
+                    if (validateEmail(message)) {
+                        chatState.userEmail = message;
+                        startBargaining();
+                    } else {
+                        addBotMessage("Kripya sahi email ID daalein. Example: vendor@gmail.com");
+                    }
                     break;
-                    
-                case FLOW_STEPS.DEAL_CLOSED:
-                    if (message.includes("Haan")) resetToWelcome();
+
+                case "bargaining":
+                    handleBargaining(message);
+                    break;
+
+                case "new_search_decision":
+                    if (message.includes("Haan")) {
+                        resetToWelcome();
+                    } else {
+                        addBotMessage("Dhanyavaad! Jab bhi zaroorat ho humse sampark karein.");
+                    }
+                    break;
+
+                case "deal_closed":
+                    // Do nothing or reset if user wants to start new search
+                    if (message.includes("nayi search")) {
+                        resetToWelcome();
+                    }
                     break;
             }
         }
 
-        // ========== STEP HANDLERS ==========
-        function handleWelcomeStep(message) {
-            const items = {
-                "onion": "Onion",
-                "tomato": "Tomato",
-                "paneer": "Paneer"
+        function askForPincode() {
+            addBotMessage(`Achha! Aap ${chatState.selectedItem} khareedna chahte hain. Kripya apna pincode bataein taaki hum aapke sheher mein suppliers dhundh sakein.`);
+            chatState.step = "ask_pincode";
+        }
+
+        function askForQuantity() {
+            addBotMessage(`Aap kitne ${chatState.selectedItem} khareedna chahte hain? (Example: 5 KG ya 10 KG)`);
+            chatState.step = "ask_quantity";
+        }
+
+        function askForPriceRange() {
+            addBotMessage(`Aap kis price range mein ${chatState.selectedItem} khareedna chahte hain? (Example: 20-30)`);
+            chatState.step = "ask_price_range";
+        }
+
+        function showAvailableMaterials() {
+            const availableMaterials = suppliersDatabase[chatState.city]?.filter(material =>
+                material.item === chatState.selectedItem &&
+                material.pricePerKg >= chatState.minPrice &&
+                material.pricePerKg <= chatState.maxPrice
+            ) || [];
+
+            if (availableMaterials.length === 0) {
+                addBotMessage(`Maaf kijiye, ${chatState.city} mein ${chatState.minPrice}-${chatState.maxPrice} ke range mein ${chatState.selectedItem} uplabdh nahi hai. Kya aap price range badalna chahenge?`, [
+                    "Haan, nayi range daalna hai",
+                    "Nahi, abhi nahi"
+                ]);
+                chatState.step = "new_search_decision";
+                return;
+            }
+
+            addBotMessage(`Yahan ${chatState.city} mein uplabdh ${chatState.selectedItem} ke options hain:`);
+
+            availableMaterials.forEach(material => {
+                const materialElement = document.createElement("div");
+                materialElement.classList.add("material-option");
+                materialElement.innerHTML = `
+                    <h4>${material.supplier} - ${material.quality}</h4>
+                    <div class="material-details">
+                        <span>Price: ₹${material.pricePerKg}/KG</span>
+                        <span>ID: ${material.id}</span>
+                    </div>
+                    <p>Contact: ${material.contact}</p>
+                `;
+                materialElement.onclick = function () {
+                    addUserMessage(material.id.toString());
+                    handleUserResponse(material.id.toString());
+                };
+                chatMessages.appendChild(materialElement);
+            });
+
+            addBotMessage("Kripya upar diye gaye options mein se ek ka ID number select karein ya 'Nahi' likhein agar koi pasand nahi aaya.");
+            chatState.step = "show_materials";
+        }
+
+        function askForEmail() {
+            addBotMessage("Deal proceed karne ke liye, kripya apna email ID share karein taaki hum aapko confirmation bhej sakein.");
+            chatState.step = "ask_email";
+        }
+
+        function startBargaining() {
+            addBotMessage(`Aapne ${chatState.selectedMaterial.supplier} se ${chatState.quantity} KG ${chatState.selectedMaterial.item} ₹${chatState.selectedMaterial.pricePerKg}/KG ke rate par khareedne ka faisla kiya hai. Total amount hai ₹${chatState.selectedMaterial.pricePerKg * chatState.quantity}.`);
+
+            const bargainingMessage = document.createElement("div");
+            bargainingMessage.classList.add("message", "bot-message", "bargaining-message");
+            bargainingMessage.textContent = "(Bargaining simulation through Gemini API would happen here in a real implementation)";
+            chatMessages.appendChild(bargainingMessage);
+
+            addBotMessage("Kya aap is rate par deal final karna chahenge?", [
+                "Haan, final karo",
+                "Nahi, mujhe ₹" + Math.floor(chatState.selectedMaterial.pricePerKg * 0.9) + "/KG chahiye",
+                "Main 5% discount chahta hoon"
+            ]);
+
+            chatState.bargaining = true;
+            chatState.currentOffer = chatState.selectedMaterial.pricePerKg;
+            chatState.step = "bargaining";
+        }
+
+        function handleBargaining(message) {
+            if (message.includes("Haan") || message.includes("final")) {
+                closeDeal(chatState.currentOffer);
+                return;
+            }
+
+            // Simulate bargaining (in real app, this would use Gemini API)
+            let newOffer = chatState.currentOffer;
+
+            if (message.includes("%")) {
+                const discountMatch = message.match(/(\d+)%/);
+                if (discountMatch) {
+                    const discount = parseInt(discountMatch[1]);
+                    newOffer = chatState.currentOffer * (1 - discount / 100);
+                }
+            } else if (message.includes("₹")) {
+                const priceMatch = message.match(/₹(\d+)/);
+                if (priceMatch) {
+                    newOffer = parseInt(priceMatch[1]);
+                }
+            }
+
+            // Supplier counter offer (simulated)
+            const supplierCounter = Math.max(
+                chatState.selectedMaterial.pricePerKg * 0.95, // Minimum supplier will go
+                newOffer * 1.05 // 5% higher than user's offer
+            );
+
+            if (supplierCounter <= newOffer) {
+                // User's offer is acceptable
+                chatState.currentOffer = newOffer;
+                addBotMessage(`Theek hai! Hum aapki offer ₹${newOffer}/KG par accept karte hain. Total amount hua ₹${newOffer * chatState.quantity}.`);
+                closeDeal(newOffer);
+            } else {
+                chatState.currentOffer = supplierCounter;
+                addBotMessage(`Supplier ₹${Math.round(supplierCounter)}/KG tak ja sakta hai. Kya aap is rate par deal karna pasand karenge?`, [
+                    "Haan, theek hai",
+                    "Nahi, mujhe ₹" + Math.round(supplierCounter * 0.95) + "/KG chahiye"
+                ]);
+            }
+        }
+
+        function closeDeal(finalPrice) {
+            const dealMessage = document.createElement("div");
+            dealMessage.classList.add("deal-closed");
+            dealMessage.innerHTML = `
+                <p><strong>Deal Final!</strong></p>
+                <p>Aapne ${chatState.selectedMaterial.supplier} se ${chatState.quantity} KG ${chatState.selectedItem} ₹${finalPrice}/KG ke rate par khareeda.</p>
+                <p>Total amount: ₹${finalPrice * chatState.quantity}</p>
+                <p>Supplier ko aapke email (${chatState.userEmail}) par confirmation bhej di gayi hai.</p>
+                <p>Supplier ka contact: ${chatState.selectedMaterial.contact}</p>
+            `;
+            chatMessages.appendChild(dealMessage);
+
+            // In a real app, send email to supplier and user here
+            // For demo, we'll just log it
+            console.log("Email to supplier:", {
+                to: chatState.selectedMaterial.contact,
+                subject: `New Order for ${chatState.selectedItem}`,
+                body: `You have a new order from ${chatState.userEmail}:\n\nItem: ${chatState.selectedItem}\nQuantity: ${chatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * chatState.quantity}`
+            });
+
+            console.log("Email to user:", {
+                to: chatState.userEmail,
+                subject: `Your Order Confirmation for ${chatState.selectedItem}`,
+                body: `Thank you for your order:\n\nItem: ${chatState.selectedItem}\nQuantity: ${chatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * chatState.quantity}\n\nSupplier Contact: ${chatState.selectedMaterial.contact}`
+            });
+
+            addBotMessage("Kya aap kuch aur khareedna chahenge?", [
+                "Haan, nayi search karna hai",
+                "Nahi, abhi nahi"
+            ]);
+            chatState.step = "deal_closed";
+        }
+
+        function resetToWelcome() {
+            chatState = {
+                step: "welcome",
+                selectedItem: null,
+                pincode: null,
+                city: null,
+                quantity: null,
+                minPrice: null,
+                maxPrice: null,
+                selectedMaterial: null,
+                userEmail: null,
+                bargaining: false,
+                currentOffer: null
             };
-            
-            const selected = Object.keys(items).find(item => message.includes(item));
-            chatState.selectedItem = selected ? items[selected] : message;
-            
-            addBotMessage(`Achha! Aap ${chatState.selectedItem} khareedna chahte hain.`);
-            askForPincode();
-        }
 
-        async function handlePincodeStep(message) {
-            const pincode = message.match(/\d{6}/)?.[0];
-            if (!pincode) {
-                addBotMessage("Kripya sahi 6-digit pincode daalein. Example: 110001");
-                return;
-            }
-            
-            chatState.pincode = pincode;
-            addBotMessage("Pincode verify kar raha hoon<span class='loading-dots'></span>");
-            
-            const city = await getCityFromPincode(pincode);
-            if (!city) {
-                addBotMessage("Yeh pincode valid nahi hai. Dobara try karein.");
-                return;
-            }
-            
-            chatState.city = city;
-            addBotMessage(`Dhanyavaad! ${city} ke suppliers dikha raha hoon.`);
-            askForQuantity();
-        }
-
-        function handleQuantityStep(message) {
-            const quantity = parseInt(message.match(/\d+/)?.[0]);
-            if (!quantity || quantity < 1) {
-                addBotMessage("Kripya sahi quantity daalein (1 KG se jyada). Example: 5 KG");
-                return;
-            }
-            
-            chatState.quantity = quantity;
-            askForPriceRange();
-        }
-
-        function handlePriceRangeStep(message) {
-            const [min, max] = message.split(/[-\s]/).map(Number).filter(n => !isNaN(n));
-            if (!min || !max || min >= max) {
-                addBotMessage("Kripya sahi range daalein. Example: 20-30 ya 20 30");
-                return;
-            }
-            
-            chatState.minPrice = min;
-            chatState.maxPrice = max;
-            showAvailableMaterials();
-        }
-
-        function handleSellerSelectionStep(message) {
-            if (message.toLowerCase().includes("nahi")) {
-                addBotMessage("Koi baat nahi. Naye search ke liye 'Haan' bolein.", ["Haan", "Nahi"]);
-                chatState.step = FLOW_STEPS.DEAL_CLOSED;
-                return;
-            }
-            
-            const material = findMaterialById(parseInt(message));
-            if (!material) {
-                addBotMessage("Kripya sahi supplier ID daalein.");
-                return;
-            }
-            
-            chatState.selectedMaterial = material;
-            startBargaining();
-        }
-
-        async function handleBargainingStep(message) {
-            if (message.includes("Haan") && message.includes("final")) {
-                await closeDeal(chatState.currentOffer);
-                return;
-            }
-            
-            // Gemini API integration for bargaining
-            const geminiResponse = await callGeminiAPI(message);
-            addBotMessage(geminiResponse);
-            
-            // [Add your logic to handle Gemini's response]
-        }
-
-        function handleEmailStep(message) {
-            if (!validateEmail(message)) {
-                addBotMessage("Kripya sahi email daalein. Example: vendor@gmail.com");
-                return;
-            }
-            
-            chatState.userEmail = message;
-            sendConfirmationEmails();
-            addBotMessage("Dhanyavaad! Deal confirmation aapke email par bhej di gayi hai.");
-            resetToWelcome();
-        }
-
-        // ========== GEMINI API INTEGRATION ==========
-        async function callGeminiAPI(userMessage) {
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: `Act as a bargaining assistant for vegetable purchase. Current offer: ₹${chatState.currentOffer}/kg for ${chatState.quantity}kg ${chatState.selectedItem}. User says: "${userMessage}". Respond in Hinglish under 20 words.`
-                            }]
-                        }]
-                    })
-                });
-                
-                const data = await response.json();
-                return data.candidates[0].content.parts[0].text;
-            } catch (error) {
-                console.error("Gemini API error:", error);
-                return "Samay samasya ho rahi hai. Kya aap ₹" + (chatState.currentOffer - 5) + "/kg par deal karenge?";
-            }
-        }
-
-        // ========== EMAIL INTEGRATION ==========
-        async function sendConfirmationEmails() {
-            const emailData = {
-                to: [chatState.userEmail, chatState.selectedMaterial.contact],
-                subject: `Deal Confirmation - ${chatState.selectedItem}`,
-                body: `
-                    Deal Details:
-                    Item: ${chatState.selectedItem}
-                    Quantity: ${chatState.quantity}kg
-                    Final Price: ₹${chatState.currentOffer}/kg
-                    Total Amount: ₹${chatState.currentOffer * chatState.quantity}
-                    Supplier Contact: ${chatState.selectedMaterial.contact}
-                    Buyer Email: ${chatState.userEmail}
-                `
-            };
-            
-            try {
-                await fetch(EMAIL_API_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(emailData)
-                });
-            } catch (error) {
-                console.error("Email sending failed:", error);
-            }
+            addBotMessage("Achha! Phir se shuru karte hain.");
+            addBotMessage("Kya aap aj kuch khareedna chahenge?", [
+                "Haan, onion khareedna hai",
+                "Haan, tomato khareedna hai",
+                "Haan, paneer khareedna hai",
+                "Kuch aur khareedna hai"
+            ]);
         }
 
         // Helper functions

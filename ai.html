@@ -239,6 +239,16 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Gemini AI message style */
+        .gemini-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -277,6 +287,71 @@
     </div>
 
     <script>
+        // JSONBin.io configuration
+        const JSONBIN_API_KEY = "$2a$10$fvvmwuFzwWXFZM6RtOsd3unKaWy.U/4gGAIg83.B5HDr7qL/qjO9m"; // Replace with your actual API key
+        const JSONBIN_BIN_ID = "688640bff7e7a370d1eebd5d"; // Replace with your actual bin ID
+        
+        // =============================================
+        // JSONBin.io Storage Functions
+        // =============================================
+        
+        // Function to save supplier data to JSONBin.io
+        async function saveToJsonBin(data) {
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                console.log('Data saved to JSONBin:', result);
+                return true;
+            } catch (error) {
+                console.error('Error saving to JSONBin:', error);
+                return false;
+            }
+        }
+        
+        // Function to load supplier data from JSONBin.io
+        async function loadFromJsonBin() {
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                const result = await response.json();
+                console.log('Data loaded from JSONBin:', result);
+                return result.record || {
+                    "suppliers": [],
+                    "products": []
+                };
+            } catch (error) {
+                console.error('Error loading from JSONBin:', error);
+                return {
+                    "suppliers": [],
+                    "products": []
+                };
+            }
+        }
+        
+        // Initialize database with JSONBin data
+        let suppliersDatabase = {
+            "suppliers": [],
+            "products": []
+        };
+        
+        // Load data from JSONBin when the page loads
+        (async function() {
+            suppliersDatabase = await loadFromJsonBin();
+            console.log('Initial database loaded:', suppliersDatabase);
+        })();
+    
         // =============================================
         // Common Functions
         // =============================================
@@ -288,13 +363,13 @@
             container.appendChild(messageElement);
             container.scrollTop = container.scrollHeight;
         }
-
+    
         function addBotMessage(container, message, quickReplies = null) {
             const messageElement = document.createElement("div");
             messageElement.classList.add("message", "bot-message");
             messageElement.textContent = message;
             container.appendChild(messageElement);
-
+    
             if (quickReplies) {
                 const quickReplyContainer = document.createElement("div");
                 quickReplyContainer.classList.add("quick-reply");
@@ -326,15 +401,15 @@
                 
                 container.appendChild(quickReplyContainer);
             }
-
+    
             container.scrollTop = container.scrollHeight;
         }
-
+    
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return re.test(email);
         }
-
+    
         async function getCityFromPincode(pincode) {
             try {
                 const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
@@ -349,17 +424,11 @@
                 return null;
             }
         }
-
+    
         // =============================================
         // Vendor Bot Implementation
         // =============================================
-
-        // Database simulation (using localStorage)
-        let suppliersDatabase = JSON.parse(localStorage.getItem('suppliersDatabase')) || {
-            "suppliers": [],
-            "products": []
-        };
-
+    
         // Vendor Chat state
         let vendorChatState = {
             step: "welcome",
@@ -374,12 +443,12 @@
             bargaining: false,
             currentOffer: null
         };
-
+    
         // DOM elements
         const vendorChatMessages = document.getElementById("vendor-chat-messages");
         const vendorUserInput = document.getElementById("vendor-user-input");
         const vendorSendBtn = document.getElementById("vendor-send-btn");
-
+    
         // Initialize Vendor chat
         function initializeVendorBot() {
             addBotMessage(vendorChatMessages, "Namaste! Main aapka VendorBot hoon. Main aapko food cart ke liye raw material khareedne mein madad kar sakta hoon.");
@@ -390,27 +459,27 @@
                 "Kuch aur khareedna hai"
             ]);
         }
-
+    
         // Send message on button click
         vendorSendBtn.addEventListener("click", sendVendorMessage);
-
+    
         // Send message on Enter key
         vendorUserInput.addEventListener("keypress", function(e) {
             if (e.key === "Enter") {
                 sendVendorMessage();
             }
         });
-
+    
         function sendVendorMessage() {
             const message = vendorUserInput.value.trim();
             if (message === "") return;
-
+    
             addUserMessage(vendorChatMessages, message);
             vendorUserInput.value = "";
-
+    
             handleVendorResponse(message);
         }
-
+    
         async function handleVendorResponse(message) {
             switch (vendorChatState.step) {
                 case "welcome":
@@ -546,22 +615,22 @@
                     break;
             }
         }
-
+    
         function askForPincode() {
             addBotMessage(vendorChatMessages, `Achha! Aap ${vendorChatState.selectedItem} khareedna chahte hain. Kripya apna pincode bataein taaki hum aapke sheher mein suppliers dhundh sakein.`);
             vendorChatState.step = "ask_pincode";
         }
-
+    
         function askForQuantity() {
             addBotMessage(vendorChatMessages, `Aap kitne ${vendorChatState.selectedItem} khareedna chahte hain? (Example: 5 KG ya 10 KG)`);
             vendorChatState.step = "ask_quantity";
         }
-
+    
         function askForPriceRange() {
             addBotMessage(vendorChatMessages, `Aap kis price range mein ${vendorChatState.selectedItem} khareedna chahte hain? (Example: 20-30)`);
             vendorChatState.step = "ask_price_range";
         }
-
+    
         function showAvailableMaterials() {
             // Get products from the suppliers database that match the search criteria
             const availableMaterials = suppliersDatabase.products.filter(product => 
@@ -570,7 +639,7 @@
                 product.minPrice <= vendorChatState.maxPrice && 
                 product.maxPrice >= vendorChatState.minPrice
             );
-
+    
             if (availableMaterials.length === 0) {
                 addBotMessage(vendorChatMessages, `Maaf kijiye, ${vendorChatState.city} mein ${vendorChatState.minPrice}-${vendorChatState.maxPrice} ke range mein ${vendorChatState.selectedItem} uplabdh nahi hai. Kya aap price range badalna chahenge?`, [
                     "Haan, nayi range daalna hai",
@@ -579,7 +648,7 @@
                 vendorChatState.step = "new_search_decision";
                 return;
             }
-
+    
             addBotMessage(vendorChatMessages, `Yahan ${vendorChatState.city} mein uplabdh ${vendorChatState.selectedItem} ke options hain:`);
             
             availableMaterials.forEach((material, index) => {
@@ -601,16 +670,16 @@
                 };
                 vendorChatMessages.appendChild(materialElement);
             });
-
+    
             addBotMessage(vendorChatMessages, "Kripya upar diye gaye options mein se ek ka ID number select karein ya 'Nahi' likhein agar koi pasand nahi aaya.");
             vendorChatState.step = "show_materials";
         }
-
+    
         function askForEmail() {
             addBotMessage(vendorChatMessages, "Deal proceed karne ke liye, kripya apna email ID share karein taaki hum aapko confirmation bhej sakein.");
             vendorChatState.step = "ask_email";
         }
-
+    
         function startBargaining() {
             addBotMessage(vendorChatMessages, `Aapne ${vendorChatState.selectedMaterial.name} ₹${vendorChatState.selectedMaterial.standardPrice}/KG ke rate par khareedne ka faisla kiya hai.`);
             
@@ -638,7 +707,7 @@
             vendorChatState.bargaining = true;
             vendorChatState.step = "bargaining";
         }
-
+    
         function handleBargaining(message) {
             const material = vendorChatState.selectedMaterial;
             const minPrice = material.minPrice;
@@ -649,7 +718,7 @@
                 closeDeal(vendorChatState.currentOffer);
                 return;
             }
-
+    
             // Try to extract a price from the message
             let newOffer = vendorChatState.currentOffer;
             const priceMatch = message.match(/₹(\d+)/);
@@ -663,7 +732,7 @@
                     newOffer = Math.max(minPrice, vendorChatState.currentOffer * (1 - discount/100));
                 }
             }
-
+    
             // Simulate supplier's response - try to get the highest possible price
             if (newOffer < minPrice) {
                 // Below minimum - reject
@@ -704,7 +773,7 @@
                 }
             }
         }
-
+    
         function closeDeal(finalPrice) {
             const material = vendorChatState.selectedMaterial;
             const supplier = suppliersDatabase.suppliers.find(s => s.id === material.supplierId);
@@ -739,7 +808,7 @@
             ]);
             vendorChatState.step = "deal_closed";
         }
-
+    
         function resetVendorToWelcome() {
             vendorChatState = {
                 step: "welcome",
@@ -763,7 +832,7 @@
                 "Kuch aur khareedna hai"
             ]);
         }
-
+    
         function findMaterialById(id) {
             // Get products from the suppliers database
             const availableMaterials = suppliersDatabase.products.filter(product => 
@@ -775,11 +844,11 @@
             
             return availableMaterials[id - 1]; // Simple index-based lookup for demo
         }
-
+    
         // =============================================
         // Supplier Bot Implementation
         // =============================================
-
+    
         // Supplier Chat state
         let supplierChatState = {
             step: "welcome",
@@ -795,12 +864,12 @@
             minPrice: null,
             maxPrice: null
         };
-
+    
         // DOM elements
         const supplierChatMessages = document.getElementById("supplier-chat-messages");
         const supplierUserInput = document.getElementById("supplier-user-input");
         const supplierSendBtn = document.getElementById("supplier-send-btn");
-
+    
         // Initialize Supplier chat
         function initializeSupplierBot() {
             addBotMessage(supplierChatMessages, "Namaste! Welcome to SupplierBot. We're excited to help you list your products for vendors to purchase.");
@@ -809,27 +878,27 @@
                 "Existing supplier"
             ]);
         }
-
+    
         // Send message on button click
         supplierSendBtn.addEventListener("click", sendSupplierMessage);
-
+    
         // Send message on Enter key
         supplierUserInput.addEventListener("keypress", function(e) {
             if (e.key === "Enter") {
                 sendSupplierMessage();
             }
         });
-
+    
         function sendSupplierMessage() {
             const message = supplierUserInput.value.trim();
             if (message === "") return;
-
+    
             addUserMessage(supplierChatMessages, message);
             supplierUserInput.value = "";
-
+    
             handleSupplierResponse(message);
         }
-
+    
         function handleSupplierResponse(message) {
             switch (supplierChatState.step) {
                 case "welcome":
@@ -955,18 +1024,18 @@
                     break;
             }
         }
-
+    
         function askForSupplierEmail() {
             addBotMessage(supplierChatMessages, "Please provide your email address for communication and verification:");
             supplierChatState.step = "ask_email";
         }
-
+    
         function askForSupplierPersonalDetails() {
             addBotMessage(supplierChatMessages, "Let's collect some basic information to create your supplier profile.");
             addBotMessage(supplierChatMessages, "What is your full name?");
             supplierChatState.step = "ask_personal_details";
         }
-
+    
         function askForProductCategory() {
             addBotMessage(supplierChatMessages, "What product categories do you deal in? (Select one or more)", [
                 "🍎 Fruits",
@@ -985,7 +1054,7 @@
             
             supplierChatState.step = "ask_product_category";
         }
-
+    
         function showCategorySelection() {
             if (supplierChatState.selectedCategories.length > 0) {
                 addBotMessage(supplierChatMessages, `Currently selected categories: ${supplierChatState.selectedCategories.join(", ")}`);
@@ -993,27 +1062,27 @@
                 addBotMessage(supplierChatMessages, "No categories selected yet.");
             }
         }
-
+    
         function askForProductName() {
             addBotMessage(supplierChatMessages, "Please enter the name of the product you want to list (e.g., 'Onion' or 'Paneer'):");
             supplierChatState.step = "ask_product_name";
         }
-
+    
         function askForStandardPrice() {
             addBotMessage(supplierChatMessages, `What is your standard selling price per KG/unit for ${supplierChatState.productName}?`);
             supplierChatState.step = "ask_standard_price";
         }
-
+    
         function askForMinPrice() {
             addBotMessage(supplierChatMessages, "To enable bargaining, what is the minimum price you would accept? (This should be less than your standard price)");
             supplierChatState.step = "ask_min_price";
         }
-
+    
         function askForMaxPrice() {
             addBotMessage(supplierChatMessages, "What is the maximum price you would expect? (This should be at least your standard price)");
             supplierChatState.step = "ask_max_price";
         }
-
+    
         function confirmProductListing() {
             addBotMessage(supplierChatMessages, "Please review your product listing:");
             
@@ -1035,8 +1104,8 @@
             
             supplierChatState.step = "confirm_listing";
         }
-
-        function saveProductListing() {
+    
+        async function saveProductListing() {
             // Generate a unique ID for the supplier (in real app, use Firebase auto-ID)
             const supplierId = 'supplier-' + Math.random().toString(36).substr(2, 9);
             
@@ -1074,24 +1143,36 @@
             };
             suppliersDatabase.products.push(product);
             
-            // Save to localStorage
-            localStorage.setItem('suppliersDatabase', JSON.stringify(suppliersDatabase));
+            // Save to JSONBin.io
+            const saveSuccess = await saveToJsonBin(suppliersDatabase);
             
-            // Show success message
-            const successMessage = document.createElement("div");
-            successMessage.classList.add("success-message");
-            successMessage.innerHTML = `
-                <p>✅ Your product has been successfully listed!</p>
-                <p>Vendors in ${supplierChatState.businessCity} will now be able to see and negotiate for ${supplierChatState.productName}.</p>
-                <p>You'll be notified via email when any vendor shows interest or a deal is finalized.</p>
-                <p>Thank you for joining us!</p>
-            `;
-            supplierChatMessages.appendChild(successMessage);
+            if (saveSuccess) {
+                // Show success message
+                const successMessage = document.createElement("div");
+                successMessage.classList.add("success-message");
+                successMessage.innerHTML = `
+                    <p>✅ Your product has been successfully listed!</p>
+                    <p>Vendors in ${supplierChatState.businessCity} will now be able to see and negotiate for ${supplierChatState.productName}.</p>
+                    <p>You'll be notified via email when any vendor shows interest or a deal is finalized.</p>
+                    <p>Thank you for joining us!</p>
+                `;
+                supplierChatMessages.appendChild(successMessage);
+            } else {
+                // Show error message
+                const errorMessage = document.createElement("div");
+                errorMessage.classList.add("message", "bot-message");
+                errorMessage.innerHTML = `
+                    <p>⚠️ We encountered an issue saving your product listing.</p>
+                    <p>Your product is available locally but might not be visible to all vendors.</p>
+                    <p>Please try again later or contact support.</p>
+                `;
+                supplierChatMessages.appendChild(errorMessage);
+            }
             
             // Reset for next product
             resetToProductCategory();
         }
-
+    
         function resetToProductCategory() {
             // Clear product-specific fields but keep supplier info
             supplierChatState.selectedCategories = [];
@@ -1107,11 +1188,11 @@
             
             supplierChatState.step = "welcome";
         }
-
+    
         // =============================================
         // Switching Between Bots
         // =============================================
-
+    
         document.getElementById('supplier-link').addEventListener('click', function(e) {
             e.preventDefault();
             document.getElementById('vendor-bot').classList.add('hidden');
@@ -1120,7 +1201,7 @@
                 initializeSupplierBot();
             }
         });
-
+    
         document.getElementById('vendor-link').addEventListener('click', function(e) {
             e.preventDefault();
             document.getElementById('supplier-bot').classList.add('hidden');
@@ -1129,7 +1210,7 @@
                 initializeVendorBot();
             }
         });
-
+    
         // Initialize Vendor Bot when page loads
         initializeVendorBot();
     </script>
