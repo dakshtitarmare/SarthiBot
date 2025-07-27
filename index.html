@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VendorBot - Food Cart Supplies</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        .chat-container {
+            width: 90%;
+            max-width: 500px;
+            height: 80vh;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .bot-message {
+            background-color: #e5e5ea;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .user-message {
+            background-color: #4CAF50;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .quick-reply {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        
+        .quick-reply-btn {
+            background-color: #f0f0f0;
+            border: none;
+            border-radius: 15px;
+            padding: 5px 12px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .quick-reply-btn:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        
+        #send-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .material-option {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .material-option:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .material-option h4 {
+            margin: 0 0 5px 0;
+            color: #4CAF50;
+        }
+        
+        .material-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        
+        .bargaining-message {
+            font-style: italic;
+            color: #666;
+        }
+        
+        .deal-closed {
+            background-color: #dff0d8;
+            border-left: 4px solid #3c763d;
+            padding: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            VendorBot - Food Cart Supplies
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <!-- Messages will appear here -->
+        </div>
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Type your message...">
+            <button id="send-btn">→</button>
+        </div>
+    </div>
+
+    <script>
+        // Database simulation (in a real app, this would be an API call)
+        const suppliersDatabase = {
+            "Delhi": [
+                { id: 1, item: "Onion", pricePerKg: 25, supplier: "Fresh Farms", quality: "A Grade", contact: "freshfarms@example.com" },
+                { id: 2, item: "Onion", pricePerKg: 20, supplier: "City Vegetables", quality: "B Grade", contact: "cityveg@example.com" },
+                { id: 3, item: "Onion", pricePerKg: 30, supplier: "Organic Delights", quality: "Organic", contact: "organicd@example.com" },
+                { id: 4, item: "Tomato", pricePerKg: 40, supplier: "Fresh Farms", quality: "A Grade", contact: "freshfarms@example.com" },
+                { id: 5, item: "Tomato", pricePerKg: 35, supplier: "City Vegetables", quality: "B Grade", contact: "cityveg@example.com" },
+                { id: 6, item: "Paneer", pricePerKg: 200, supplier: "Dairy King", quality: "Premium", contact: "dairyking@example.com" },
+                { id: 7, item: "Paneer", pricePerKg: 180, supplier: "Milk & More", quality: "Standard", contact: "milkmore@example.com" }
+            ],
+            "Mumbai": [
+                { id: 8, item: "Onion", pricePerKg: 28, supplier: "Mumbai Veggies", quality: "A Grade", contact: "mumbaiveg@example.com" },
+                { id: 9, item: "Tomato", pricePerKg: 45, supplier: "Mumbai Veggies", quality: "A Grade", contact: "mumbaiveg@example.com" },
+                { id: 10, item: "Paneer", pricePerKg: 220, supplier: "Mumbai Dairy", quality: "Premium", contact: "mumbaidairy@example.com" }
+            ],
+            "Bangalore": [
+                { id: 11, item: "Onion", pricePerKg: 30, supplier: "Bangalore Fresh", quality: "A Grade", contact: "blrfresh@example.com" },
+                { id: 12, item: "Tomato", pricePerKg: 50, supplier: "Bangalore Fresh", quality: "Organic", contact: "blrfresh@example.com" }
+            ]
+        };
+
+        // City mapping based on pincode (simplified for demo)
+        const pincodeToCity = {
+            "1100": "Delhi",
+            "4000": "Mumbai",
+            "5600": "Bangalore"
+            // In real app, this would be more comprehensive
+        };
+
+        // Chat state
+        let chatState = {
+            step: "welcome",
+            selectedItem: null,
+            pincode: null,
+            city: null,
+            quantity: null,
+            minPrice: null,
+            maxPrice: null,
+            selectedMaterial: null,
+            userEmail: null,
+            bargaining: false,
+            currentOffer: null
+        };
+
+        // DOM elements
+        const chatMessages = document.getElementById("chat-messages");
+        const userInput = document.getElementById("user-input");
+        const sendBtn = document.getElementById("send-btn");
+
+        // Initialize chat
+        window.onload = function() {
+            addBotMessage("Namaste! Main aapka VendorBot hoon. Main aapko food cart ke liye raw material khareedne mein madad kar sakta hoon.");
+            addBotMessage("Kya aap aj kuch khareedna chahenge?", [
+                "Haan, onion khareedna hai",
+                "Haan, tomato khareedna hai",
+                "Haan, paneer khareedna hai",
+                "Kuch aur khareedna hai"
+            ]);
+        };
+
+        // Send message on button click
+        sendBtn.addEventListener("click", sendMessage);
+
+        // Send message on Enter key
+        userInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === "") return;
+
+            addUserMessage(message);
+            userInput.value = "";
+
+            handleUserResponse(message);
+        }
+
+        function addUserMessage(message) {
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", "user-message");
+            messageElement.textContent = message;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addBotMessage(message, quickReplies = null) {
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message", "bot-message");
+            messageElement.textContent = message;
+            chatMessages.appendChild(messageElement);
+
+            if (quickReplies) {
+                const quickReplyContainer = document.createElement("div");
+                quickReplyContainer.classList.add("quick-reply");
+                
+                quickReplies.forEach(reply => {
+                    const button = document.createElement("button");
+                    button.classList.add("quick-reply-btn");
+                    button.textContent = reply;
+                    button.onclick = function() {
+                        addUserMessage(reply);
+                        handleUserResponse(reply);
+                    };
+                    quickReplyContainer.appendChild(button);
+                });
+                
+                chatMessages.appendChild(quickReplyContainer);
+            }
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleUserResponse(message) {
+            switch (chatState.step) {
+                case "welcome":
+                    if (message.includes("onion") || message === "Haan, onion khareedna hai") {
+                        chatState.selectedItem = "Onion";
+                        askForPincode();
+                    } else if (message.includes("tomato") || message === "Haan, tomato khareedna hai") {
+                        chatState.selectedItem = "Tomato";
+                        askForPincode();
+                    } else if (message.includes("paneer") || message === "Haan, paneer khareedna hai") {
+                        chatState.selectedItem = "Paneer";
+                        askForPincode();
+                    } else if (message === "Kuch aur khareedna hai") {
+                        addBotMessage("Kripya bataein aap kya khareedna chahenge? (Example: Gobhi, Aalu, etc.)");
+                        chatState.step = "ask_custom_item";
+                    } else {
+                        chatState.selectedItem = message;
+                        askForPincode();
+                    }
+                    break;
+                
+                case "ask_custom_item":
+                    chatState.selectedItem = message;
+                    askForPincode();
+                    break;
+                
+                case "ask_pincode":
+                    const pincode = message.split(" ").find(part => /^\d+$/.test(part));
+                    if (pincode) {
+                        chatState.pincode = pincode;
+                        // Simplified city detection - in real app use proper API
+                        const cityPrefix = pincode.substring(0, 2);
+                        if (cityPrefix === "11") {
+                            chatState.city = "Delhi";
+                        } else if (cityPrefix === "40") {
+                            chatState.city = "Mumbai";
+                        } else if (cityPrefix === "56") {
+                            chatState.city = "Bangalore";
+                        } else {
+                            // Default to Delhi if pincode not recognized
+                            chatState.city = "Delhi";
+                        }
+                        
+                        addBotMessage(`Dhanyavaad! Main aapko ${chatState.city} mein suppliers dhundhunga.`);
+                        askForQuantity();
+                    } else {
+                        addBotMessage("Kripya sahi pincode daalein. Example: 110001");
+                    }
+                    break;
+                
+                case "ask_quantity":
+                    const quantityMatch = message.match(/\d+/);
+                    if (quantityMatch) {
+                        chatState.quantity = parseInt(quantityMatch[0]);
+                        askForPriceRange();
+                    } else {
+                        addBotMessage("Kripya sahi quantity daalein. Example: 5 KG ya 10 KG");
+                    }
+                    break;
+                
+                case "ask_price_range":
+                    const priceRangeMatch = message.match(/(\d+)\s*-\s*(\d+)/);
+                    if (priceRangeMatch) {
+                        chatState.minPrice = parseInt(priceRangeMatch[1]);
+                        chatState.maxPrice = parseInt(priceRangeMatch[2]);
+                        showAvailableMaterials();
+                    } else {
+                        addBotMessage("Kripya sahi price range daalein. Example: 20-30");
+                    }
+                    break;
+                
+                case "show_materials":
+                    if (message.toLowerCase().includes("nahi")) {
+                        addBotMessage("Koi baat nahi. Kya aap kuch aur dekhna chahenge?", [
+                            "Haan, nayi search karna hai",
+                            "Nahi, baad mein"
+                        ]);
+                        chatState.step = "new_search_decision";
+                    } else {
+                        const materialId = parseInt(message);
+                        const material = findMaterialById(materialId);
+                        if (material) {
+                            chatState.selectedMaterial = material;
+                            askForEmail();
+                        } else {
+                            addBotMessage("Kripya sahi option number daalein.");
+                        }
+                    }
+                    break;
+                
+                case "ask_email":
+                    if (validateEmail(message)) {
+                        chatState.userEmail = message;
+                        startBargaining();
+                    } else {
+                        addBotMessage("Kripya sahi email ID daalein. Example: vendor@example.com");
+                    }
+                    break;
+                
+                case "bargaining":
+                    handleBargaining(message);
+                    break;
+                
+                case "new_search_decision":
+                    if (message.includes("Haan")) {
+                        resetToWelcome();
+                    } else {
+                        addBotMessage("Dhanyavaad! Jab bhi zaroorat ho humse sampark karein.");
+                    }
+                    break;
+                
+                case "deal_closed":
+                    // Do nothing or reset if user wants to start new search
+                    if (message.includes("nayi search")) {
+                        resetToWelcome();
+                    }
+                    break;
+            }
+        }
+
+        function askForPincode() {
+            addBotMessage(`Achha! Aap ${chatState.selectedItem} khareedna chahte hain. Kripya apna pincode bataein taaki hum aapke sheher mein suppliers dhundh sakein.`);
+            chatState.step = "ask_pincode";
+        }
+
+        function askForQuantity() {
+            addBotMessage(`Aap kitne ${chatState.selectedItem} khareedna chahte hain? (Example: 5 KG ya 10 KG)`);
+            chatState.step = "ask_quantity";
+        }
+
+        function askForPriceRange() {
+            addBotMessage(`Aap kis price range mein ${chatState.selectedItem} khareedna chahte hain? (Example: 20-30)`);
+            chatState.step = "ask_price_range";
+        }
+
+        function showAvailableMaterials() {
+            const availableMaterials = suppliersDatabase[chatState.city]?.filter(material => 
+                material.item === chatState.selectedItem && 
+                material.pricePerKg >= chatState.minPrice && 
+                material.pricePerKg <= chatState.maxPrice
+            ) || [];
+
+            if (availableMaterials.length === 0) {
+                addBotMessage(`Maaf kijiye, ${chatState.city} mein ${chatState.minPrice}-${chatState.maxPrice} ke range mein ${chatState.selectedItem} uplabdh nahi hai. Kya aap price range badalna chahenge?`, [
+                    "Haan, nayi range daalna hai",
+                    "Nahi, abhi nahi"
+                ]);
+                chatState.step = "new_search_decision";
+                return;
+            }
+
+            addBotMessage(`Yahan ${chatState.city} mein uplabdh ${chatState.selectedItem} ke options hain:`);
+            
+            availableMaterials.forEach(material => {
+                const materialElement = document.createElement("div");
+                materialElement.classList.add("material-option");
+                materialElement.innerHTML = `
+                    <h4>${material.supplier} - ${material.quality}</h4>
+                    <div class="material-details">
+                        <span>Price: ₹${material.pricePerKg}/KG</span>
+                        <span>ID: ${material.id}</span>
+                    </div>
+                    <p>Contact: ${material.contact}</p>
+                `;
+                materialElement.onclick = function() {
+                    addUserMessage(material.id.toString());
+                    handleUserResponse(material.id.toString());
+                };
+                chatMessages.appendChild(materialElement);
+            });
+
+            addBotMessage("Kripya upar diye gaye options mein se ek ka ID number select karein ya 'Nahi' likhein agar koi pasand nahi aaya.");
+            chatState.step = "show_materials";
+        }
+
+        function askForEmail() {
+            addBotMessage("Deal proceed karne ke liye, kripya apna email ID share karein taaki hum aapko confirmation bhej sakein.");
+            chatState.step = "ask_email";
+        }
+
+        function startBargaining() {
+            addBotMessage(`Aapne ${chatState.selectedMaterial.supplier} se ${chatState.quantity} KG ${chatState.selectedMaterial.item} ₹${chatState.selectedMaterial.pricePerKg}/KG ke rate par khareedne ka faisla kiya hai. Total amount hai ₹${chatState.selectedMaterial.pricePerKg * chatState.quantity}.`);
+            
+            const bargainingMessage = document.createElement("div");
+            bargainingMessage.classList.add("message", "bot-message", "bargaining-message");
+            bargainingMessage.textContent = "(Bargaining simulation through Gemini API would happen here in a real implementation)";
+            chatMessages.appendChild(bargainingMessage);
+            
+            addBotMessage("Kya aap is rate par deal final karna chahenge?", [
+                "Haan, final karo",
+                "Nahi, mujhe ₹" + Math.floor(chatState.selectedMaterial.pricePerKg * 0.9) + "/KG chahiye",
+                "Main 5% discount chahta hoon"
+            ]);
+            
+            chatState.bargaining = true;
+            chatState.currentOffer = chatState.selectedMaterial.pricePerKg;
+            chatState.step = "bargaining";
+        }
+
+        function handleBargaining(message) {
+            if (message.includes("Haan") || message.includes("final")) {
+                closeDeal(chatState.currentOffer);
+                return;
+            }
+
+            // Simulate bargaining (in real app, this would use Gemini API)
+            let newOffer = chatState.currentOffer;
+            
+            if (message.includes("%")) {
+                const discountMatch = message.match(/(\d+)%/);
+                if (discountMatch) {
+                    const discount = parseInt(discountMatch[1]);
+                    newOffer = chatState.currentOffer * (1 - discount/100);
+                }
+            } else if (message.includes("₹")) {
+                const priceMatch = message.match(/₹(\d+)/);
+                if (priceMatch) {
+                    newOffer = parseInt(priceMatch[1]);
+                }
+            }
+
+            // Supplier counter offer (simulated)
+            const supplierCounter = Math.max(
+                chatState.selectedMaterial.pricePerKg * 0.95, // Minimum supplier will go
+                newOffer * 1.05 // 5% higher than user's offer
+            );
+
+            if (supplierCounter <= newOffer) {
+                // User's offer is acceptable
+                chatState.currentOffer = newOffer;
+                addBotMessage(`Theek hai! Hum aapki offer ₹${newOffer}/KG par accept karte hain. Total amount hua ₹${newOffer * chatState.quantity}.`);
+                closeDeal(newOffer);
+            } else {
+                chatState.currentOffer = supplierCounter;
+                addBotMessage(`Supplier ₹${Math.round(supplierCounter)}/KG tak ja sakta hai. Kya aap is rate par deal karna pasand karenge?`, [
+                    "Haan, theek hai",
+                    "Nahi, mujhe ₹" + Math.round(supplierCounter * 0.95) + "/KG chahiye"
+                ]);
+            }
+        }
+
+        function closeDeal(finalPrice) {
+            const dealMessage = document.createElement("div");
+            dealMessage.classList.add("deal-closed");
+            dealMessage.innerHTML = `
+                <p><strong>Deal Final!</strong></p>
+                <p>Aapne ${chatState.selectedMaterial.supplier} se ${chatState.quantity} KG ${chatState.selectedItem} ₹${finalPrice}/KG ke rate par khareeda.</p>
+                <p>Total amount: ₹${finalPrice * chatState.quantity}</p>
+                <p>Supplier ko aapke email (${chatState.userEmail}) par confirmation bhej di gayi hai.</p>
+                <p>Supplier ka contact: ${chatState.selectedMaterial.contact}</p>
+            `;
+            chatMessages.appendChild(dealMessage);
+            
+            // In a real app, send email to supplier and user here
+            // For demo, we'll just log it
+            console.log("Email to supplier:", {
+                to: chatState.selectedMaterial.contact,
+                subject: `New Order for ${chatState.selectedItem}`,
+                body: `You have a new order from ${chatState.userEmail}:\n\nItem: ${chatState.selectedItem}\nQuantity: ${chatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * chatState.quantity}`
+            });
+            
+            console.log("Email to user:", {
+                to: chatState.userEmail,
+                subject: `Your Order Confirmation for ${chatState.selectedItem}`,
+                body: `Thank you for your order:\n\nItem: ${chatState.selectedItem}\nQuantity: ${chatState.quantity} KG\nPrice: ₹${finalPrice}/KG\nTotal: ₹${finalPrice * chatState.quantity}\n\nSupplier Contact: ${chatState.selectedMaterial.contact}`
+            });
+            
+            addBotMessage("Kya aap kuch aur khareedna chahenge?", [
+                "Haan, nayi search karna hai",
+                "Nahi, abhi nahi"
+            ]);
+            chatState.step = "deal_closed";
+        }
+
+        function resetToWelcome() {
+            chatState = {
+                step: "welcome",
+                selectedItem: null,
+                pincode: null,
+                city: null,
+                quantity: null,
+                minPrice: null,
+                maxPrice: null,
+                selectedMaterial: null,
+                userEmail: null,
+                bargaining: false,
+                currentOffer: null
+            };
+            
+            addBotMessage("Achha! Phir se shuru karte hain.");
+            addBotMessage("Kya aap aj kuch khareedna chahenge?", [
+                "Haan, onion khareedna hai",
+                "Haan, tomato khareedna hai",
+                "Haan, paneer khareedna hai",
+                "Kuch aur khareedna hai"
+            ]);
+        }
+
+        // Helper functions
+        function findMaterialById(id) {
+            for (const city in suppliersDatabase) {
+                const material = suppliersDatabase[city].find(m => m.id === id);
+                if (material) return material;
+            }
+            return null;
+        }
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+    </script>
+</body>
+</html>
